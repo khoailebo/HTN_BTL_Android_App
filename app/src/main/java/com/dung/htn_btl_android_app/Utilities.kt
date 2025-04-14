@@ -1,0 +1,9 @@
+package com.dung.htn_btl_android_app
+
+class Utilities {
+    companion object{
+        var communicator: Communicator? = null
+        var messagePlayer: MessagePlayer? = null
+    }
+
+}
