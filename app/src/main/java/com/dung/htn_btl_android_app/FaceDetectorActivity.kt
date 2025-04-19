@@ -94,9 +94,6 @@ class FaceDetectorActivity : AppCompatActivity() {
         cameraProviderFuture.addListener({
             cameraProvider = cameraProviderFuture.get()
 
-//            imageCapture = ImageCapture.Builder().build()
-
-
             val preview = Preview.Builder().build().also {
                 it.setSurfaceProvider(findViewById<PreviewView>(R.id.preview_view).surfaceProvider)
             }
@@ -115,68 +112,6 @@ class FaceDetectorActivity : AppCompatActivity() {
                     Log.e("FaceDetection", "Error in analyzer", e)
                     safeCloseImageProxy(imageProxy)
                 }
-//                if (comparing) {
-//                    val bitmap = imageProxy.toProperlyRotatedBitmap()
-//                    if (bitmap != null) {
-//                        val inputImage =
-//                            InputImage.fromBitmap(bitmap, 0)
-//                        val rotationDegree = imageProxy.imageInfo.rotationDegrees
-//                        lifecycleScope.launch(Dispatchers.Default) {
-//                            faceDetector.process(inputImage)
-//                                .addOnSuccessListener { faces ->
-//                                    if (faces.isNotEmpty()) {
-//                                        overlayView.setFaces(
-//                                            faces,
-//                                            bitmap.width,
-//                                            bitmap.height,
-//                                            rotationDegree,
-//                                            true
-//                                        )
-//                                        val face = faces[0]
-//                                        val faceBitmap =
-//                                            imageProxy.cropFace(face.boundingBox, bitmap)
-//                                        if (!checking) {
-//                                            checking = true
-//                                            Handler(Looper.getMainLooper()).postDelayed({
-//                                                comparing = false
-//                                            }, 5000)
-////                                        imageUri?.let {
-////                                            lifecycleScope.launch(Dispatchers.Default) {
-////                                                compareFaces(faceBitmap, it)
-////                                            }
-////                                        }
-//                                        }
-//
-//                                    } else {
-//                                        overlayView.setFaces(listOf<Face>(), 0, 0, 0)
-//                                    }
-//                                    imageProxy.close()
-//                                }
-//                                .addOnFailureListener {
-//                                    imageProxy.close()
-//                                }
-//                        }
-//
-//                    } else {
-//                        imageProxy.close()
-//                    }
-//                } else {
-//                    imageProxy.close()
-//                    if (!finished) {
-//                        finished = true
-//                        Handler(Looper.getMainLooper()).post {
-//                            imageProxy.close()
-//                            cameraProvider.unbindAll() // This stops all camera use cases
-//                            Log.d("CAMERA", "Camera stopped")
-//
-//                            val resultIntent = Intent()
-//
-//                            setResult(Activity.RESULT_OK, resultIntent)
-//                            Log.d("RESULT","set result")
-//                            finish()
-//                        }
-//                    }
-//                }
             }
             val cameraSelector = CameraSelector.DEFAULT_FRONT_CAMERA
 

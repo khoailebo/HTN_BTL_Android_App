@@ -55,6 +55,7 @@ class MainActivity : AppCompatActivity() {
 
     private lateinit var button: Button
     private lateinit var connectingView: ConnectingView
+    private lateinit var checkingView: CheckingView
 
     val faceActivityRegistor =
         registerForActivityResult(ActivityResultContracts.StartActivityForResult()) { result ->
@@ -62,7 +63,7 @@ class MainActivity : AppCompatActivity() {
                 Log.d("FACE COMPARE", "ok")
                 val data = result.data
                 data?.let {
-                    val isSimilar = it.getBooleanExtra(FaceDetectorActivity.SIMILARITY,false)
+                    val isSimilar = it.getBooleanExtra(FaceDetectorActivity.SIMILARITY, false)
                     faceContinuation.resume(isSimilar)
                 }
             } else {
@@ -125,23 +126,48 @@ class MainActivity : AppCompatActivity() {
             }
         }
 
+        checkingView = findViewById(R.id.checking_view)
         connectingView = findViewById<ConnectingView>(R.id.connecting_view)
     }
 
+    fun displayFRID(){
+        button.visibility = View.INVISIBLE
+        checkingView.setMode(CheckingMode.RFID)
+    }
+    fun hideChecking(){
+        checkingView.setMode(CheckingMode.NONE)
+    }
+    fun hideCheckingShowButton(){
+        checkingView.setMode(CheckingMode.NONE)
+        button.visibility = View.VISIBLE
+    }
+    fun displayAlcohol(){
+        button.visibility = View.INVISIBLE
+        checkingView.setMode(CheckingMode.ALCOHOL)
+    }
     private lateinit var faceContinuation: Continuation<Boolean>
     suspend fun authenProcess() {
         Utilities.messagePlayer?.playStartAuthenMsg()
+        lifecycleScope.launch (Dispatchers.Main){
+            displayFRID()
+        }
         Utilities.messagePlayer?.playScanCardMsg()
         val readCardSuccessful = suspendCancellableCoroutine<Boolean> { cont ->
             Utilities.communicator?.sendEvent("GetDriverId") { data ->
+                data?.let {
+                    Utilities.driver = Driver(it)
+                }
                 cont.resume(data != null, null)
             }
         }
         if (readCardSuccessful) {
             Utilities.messagePlayer?.playTingSE()
             Utilities.messagePlayer?.playReadCardSuccessMsg()
+            lifecycleScope.launch(Dispatchers.Main) {
+                hideChecking()
+            }
             Utilities.messagePlayer?.playFaceAuthenMsg()
-            val faceAuthenSuccess = suspendCancellableCoroutine<Boolean>{ cont ->
+            val faceAuthenSuccess = suspendCancellableCoroutine<Boolean> { cont ->
                 faceContinuation = cont
                 faceActivityRegistor.launch(
                     Intent(
@@ -151,15 +177,63 @@ class MainActivity : AppCompatActivity() {
                 )
             }
 
-            if(faceAuthenSuccess){
+            if (faceAuthenSuccess) {
                 Utilities.messagePlayer?.playTingSE()
                 Utilities.messagePlayer?.playFaceAuthenSuccessMsg()
-            }
-            else {
+                lifecycleScope.launch(Dispatchers.Main) {
+                    displayAlcohol()
+                }
+                Utilities.messagePlayer?.playAlcoholCheckMsg()
+                var alcoholCheckSuccess:Boolean?
+                var counter = 0
+                do {
+                    alcoholCheckSuccess = suspendCancellableCoroutine<Boolean?> { cont ->
+                        Utilities.communicator?.sendEvent("GetAlcoholLevel") { data ->
+                            Log.d("ALCOHOL CHECK", data ?: "NULL")
+                            val alcoholLevel = if (data != null) data.toFloat() else 0f;
+                            if (!(alcoholLevel > 0.00035)) {
+                                cont.resume(null)
+                            } else {
+                                cont.resume(alcoholLevel < 0.1)
+                            }
+                        }
+                    }
+                    if(alcoholCheckSuccess == null && counter < 2){
+                        Utilities.messagePlayer?.playAlcoholTryAgainMsg()
+                    }
+                    counter ++
+                }while (alcoholCheckSuccess == null && counter < 3)
+                if (alcoholCheckSuccess == true) {
+                    Utilities.messagePlayer?.playTingSE()
+                    Utilities.messagePlayer?.playAlcoholInLimit()
+                    Utilities.messagePlayer?.playFinishAuthenMsg()
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        hideChecking()
+                    }
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        startActivity(Intent(this@MainActivity, MonitorActivity::class.java))
+                    }
+                } else if(alcoholCheckSuccess == false){
+                    Utilities.messagePlayer?.playAlcoholOverLimit()
+                    Utilities.messagePlayer?.playAlcoholCheckLaterMsg()
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        hideCheckingShowButton()
+                    }
+                }
+                else if(alcoholCheckSuccess == null){
+                    Utilities.messagePlayer?.playAlcoholCheckLaterMsg()
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        hideCheckingShowButton()
+                    }
+                }
+            } else {
                 Utilities.messagePlayer?.playFaceAuthenFailMsg()
             }
 
         } else {
+            lifecycleScope.launch (Dispatchers.Main) {
+                hideCheckingShowButton()
+            }
             Utilities.messagePlayer?.playReadCardFailMsg()
         }
     }
@@ -167,6 +241,7 @@ class MainActivity : AppCompatActivity() {
     fun showConnecting(show: Boolean) {
         connectingView.setShow(show)
         button.visibility = if (show) View.INVISIBLE else View.VISIBLE
+        checkingView.setMode(CheckingMode.NONE)
     }
 
     override fun onActivityResult(requestCode: Int, resultCode: Int, data: Intent?) {
@@ -176,8 +251,7 @@ class MainActivity : AppCompatActivity() {
                 lifecycleScope.launch(Dispatchers.Default) {
                     startBluetooth()
                 }
-            }
-            else {
+            } else {
                 finish()
             }
         }

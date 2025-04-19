@@ -28,6 +28,9 @@
         android:theme="@style/Theme.HTN_BTL_Android_App"
         tools:targetApi="31">
         <activity
+            android:name=".MonitorActivity"
+            android:exported="false" />
+        <activity
             android:name=".TestResultActivity"
             android:exported="false" />
         <activity

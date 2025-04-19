@@ -147,10 +147,10 @@ class FaceDetectionOverlay @JvmOverloads constructor(
             val maxFace = faces.maxByOrNull { it.boundingBox.width() * it.boundingBox.height() }
             maxFace?.let {
                 // Draw all contours
-                drawAllContours(canvas, faces[0])
+                drawAllContours(canvas, it)
 
                 // Draw key landmarks
-                drawKeyLandmarks(canvas, faces[0])
+                drawKeyLandmarks(canvas, it)
             }
         }
 
@@ -234,7 +234,7 @@ class FaceDetectionOverlay @JvmOverloads constructor(
         val landmark = face.getLandmark(landmarkType)
         landmark?.position?.let { point ->
             val transformed = transformPoint(point)
-            canvas.drawCircle(transformed.x, transformed.y, 8f, landmarkPaint)
+            canvas.drawCircle(transformed.x, transformed.y, 4f, landmarkPaint)
         }
     }
 

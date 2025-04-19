@@ -4,6 +4,7 @@ class Utilities {
     companion object{
         var communicator: Communicator? = null
         var messagePlayer: MessagePlayer? = null
+        var driver: Driver? = null
     }
 
 }

@@ -12,7 +12,7 @@ class MessagePlayer(val context: Context) {
         .build()
 
     private val soundPool = SoundPool.Builder()
-        .setMaxStreams(2)
+        .setMaxStreams(10)
         .setAudioAttributes(audioAttributes)
         .build()
 
@@ -26,10 +26,17 @@ class MessagePlayer(val context: Context) {
         soundMap["face_authen_fail"] = soundPool.load(context,R.raw.faceauthenfail,1)
         soundMap["face_authen"] = soundPool.load(context,R.raw.faceauthen,1)
         soundMap["alcohol_check"] = soundPool.load(context,R.raw.alcoholcheck,1)
-        soundMap["alcohol_over_limt"] = soundPool.load(context,R.raw.alcoholoverlimit,1)
+        soundMap["alcohol_over_limit"] = soundPool.load(context,R.raw.alcoholoverlimit,1)
         soundMap["read_card_success"] = soundPool.load(context,R.raw.readcardsuccess,1)
         soundMap["face_authen_success"] = soundPool.load(context,R.raw.faceauthensuccess,1)
         soundMap["ting_se"] = soundPool.load(context,R.raw.ting_se,2)
+        soundMap["alcohol_in_limit"] = soundPool.load(context,R.raw.alcoholinlimit,1)
+        soundMap["alcohol_check_later"] = soundPool.load(context,R.raw.alcoholchecklater,1)
+        soundMap["finish_authen"] = soundPool.load(context,R.raw.finishauthen,1)
+        soundMap["focus_warning"] = soundPool.load(context,R.raw.focuswarning,5)
+        soundMap["health_problem"] = soundPool.load(context,R.raw.healthproblem,1)
+        soundMap["alcohol_try_again"] = soundPool.load(context,R.raw.alcoholtryagain,1)
+
     }
 
     fun playSound(soundName: String){
@@ -63,24 +70,58 @@ class MessagePlayer(val context: Context) {
     }
     suspend fun playFaceAuthenSuccessMsg(){
         playSound("face_authen_success")
-        delay(1000)
+        delay(2000)
+    }
+
+    suspend fun playAlcoholCheckLaterMsg(){
+        playSound("alcohol_check_later")
+        delay(2000)
     }
     suspend fun playFaceAuthenFailMsg(){
         playSound("face_authen_fail")
         delay(2200)
         playSound("restart_authen")
     }
+
+    suspend fun playFinishAuthenMsg(){
+        playSound("finish_authen")
+        delay(1000)
+    }
+
     suspend fun playReadCardFailMsg(){
         playSound("read_card_fail")
         delay(2200)
         playSound("restart_authen")
     }
 
-    suspend fun playAlcoholDetectMsg(){
+    suspend fun playAlcoholCheckMsg(){
         playSound("alcohol_check")
         delay(1000)
     }
 
+    suspend fun playAlcoholOverLimit(){
+        playSound("alcohol_over_limit")
+        delay(1500)
+    }
+
+    suspend fun playAlcoholInLimit(){
+        playSound("alcohol_in_limit")
+        delay(2000)
+    }
+
+    suspend fun playFocusWarning(){
+        playSound("focus_warning")
+        delay(2000)
+    }
+
+    suspend fun playHealthProblemMsg(){
+        playSound("health_problem")
+        delay(2500)
+    }
+    suspend fun playAlcoholTryAgainMsg(){
+        playSound("alcohol_try_again")
+        delay(3000)
+    }
     fun release(){
         soundPool.release()
     }
