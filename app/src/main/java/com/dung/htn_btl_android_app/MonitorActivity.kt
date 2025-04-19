@@ -2,6 +2,7 @@ package com.dung.htn_btl_android_app
 
 import android.os.Bundle
 import android.util.Log
+import android.widget.Button
 import androidx.activity.enableEdgeToEdge
 import androidx.appcompat.app.AppCompatActivity
 import androidx.camera.core.CameraExecutor
@@ -29,6 +30,7 @@ class MonitorActivity : AppCompatActivity() {
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var overlayView: FaceDetectionOverlay
     private lateinit var faceDetector: FaceDetector
+    private lateinit var stopEngineBtn: Button
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_monitor)
@@ -56,6 +58,10 @@ class MonitorActivity : AppCompatActivity() {
     fun setUpComponent() {
         previewView = findViewById(R.id.preview_view)
         overlayView = findViewById(R.id.overlayView)
+        stopEngineBtn = findViewById(R.id.stop_engine)
+        stopEngineBtn.setOnClickListener {
+            finish()
+        }
     }
 
     fun setUpCamera() {

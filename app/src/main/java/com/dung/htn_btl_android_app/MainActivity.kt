@@ -20,6 +20,7 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
@@ -28,6 +29,7 @@ import kotlinx.coroutines.withContext
 import java.util.UUID
 import kotlin.coroutines.Continuation
 import kotlin.coroutines.resume
+import kotlin.math.min
 
 private const val REQUEST_CODE_PERMISSIONS = 10
 
@@ -98,6 +100,9 @@ class MainActivity : AppCompatActivity() {
         }
 
         registerReceiver(receiver, IntentFilter(BluetoothDevice.ACTION_FOUND))
+        lifecycleScope.launch (Dispatchers.IO) {
+            Utilities.mqttConnector = MQTTConnector()
+        }
         lifecycleScope.launch(Dispatchers.Default) {
             // Enable Bluetooth if not already
             if (bluetoothAdapter?.isEnabled == false) {
@@ -130,25 +135,29 @@ class MainActivity : AppCompatActivity() {
         connectingView = findViewById<ConnectingView>(R.id.connecting_view)
     }
 
-    fun displayFRID(){
+    fun displayFRID() {
         button.visibility = View.INVISIBLE
         checkingView.setMode(CheckingMode.RFID)
     }
-    fun hideChecking(){
+
+    fun hideChecking() {
         checkingView.setMode(CheckingMode.NONE)
     }
-    fun hideCheckingShowButton(){
+
+    fun hideCheckingShowButton() {
         checkingView.setMode(CheckingMode.NONE)
         button.visibility = View.VISIBLE
     }
-    fun displayAlcohol(){
+
+    fun displayAlcohol() {
         button.visibility = View.INVISIBLE
         checkingView.setMode(CheckingMode.ALCOHOL)
     }
+
     private lateinit var faceContinuation: Continuation<Boolean>
     suspend fun authenProcess() {
         Utilities.messagePlayer?.playStartAuthenMsg()
-        lifecycleScope.launch (Dispatchers.Main){
+        lifecycleScope.launch(Dispatchers.Main) {
             displayFRID()
         }
         Utilities.messagePlayer?.playScanCardMsg()
@@ -184,43 +193,56 @@ class MainActivity : AppCompatActivity() {
                     displayAlcohol()
                 }
                 Utilities.messagePlayer?.playAlcoholCheckMsg()
-                var alcoholCheckSuccess:Boolean?
+                var alcoholCheckSuccess: Boolean?
                 var counter = 0
+                var minAlcoholValue = suspendCancellableCoroutine<Float> { cont ->
+                    Utilities.communicator?.sendEvent("InitialAlcohol") { data ->
+                        cont.resume(if (data != null) data.toFloat() else 0.0035f)
+                    }
+                }
+                Log.d("InitialAlcohol", minAlcoholValue.toString())
+
                 do {
                     alcoholCheckSuccess = suspendCancellableCoroutine<Boolean?> { cont ->
                         Utilities.communicator?.sendEvent("GetAlcoholLevel") { data ->
                             Log.d("ALCOHOL CHECK", data ?: "NULL")
                             val alcoholLevel = if (data != null) data.toFloat() else 0f;
-                            if (!(alcoholLevel > 0.00035)) {
+                            if (
+//                                !(alcoholLevel > minAlcoholValue)
+                                ((alcoholLevel * 10000).toInt() - (minAlcoholValue * 10000).toInt()) < 2
+                            ) {
+                                Log.d(
+                                    "Alcohol",
+                                    "${(alcoholLevel * 10000).toInt() - (minAlcoholValue * 10000).toInt()}"
+                                )
                                 cont.resume(null)
                             } else {
                                 cont.resume(alcoholLevel < 0.1)
                             }
                         }
                     }
-                    if(alcoholCheckSuccess == null && counter < 2){
+                    if (alcoholCheckSuccess == null && counter < 2) {
                         Utilities.messagePlayer?.playAlcoholTryAgainMsg()
                     }
-                    counter ++
-                }while (alcoholCheckSuccess == null && counter < 3)
+                    counter++
+                } while (alcoholCheckSuccess == null && counter < 3)
                 if (alcoholCheckSuccess == true) {
                     Utilities.messagePlayer?.playTingSE()
                     Utilities.messagePlayer?.playAlcoholInLimit()
                     Utilities.messagePlayer?.playFinishAuthenMsg()
                     lifecycleScope.launch(Dispatchers.Main) {
-                        hideChecking()
-                    }
-                    lifecycleScope.launch(Dispatchers.Main) {
                         startActivity(Intent(this@MainActivity, MonitorActivity::class.java))
                     }
-                } else if(alcoholCheckSuccess == false){
+                    lifecycleScope.launch(Dispatchers.Main) {
+                        hideCheckingShowButton()
+                    }
+                } else if (alcoholCheckSuccess == false) {
                     Utilities.messagePlayer?.playAlcoholOverLimit()
                     Utilities.messagePlayer?.playAlcoholCheckLaterMsg()
                     lifecycleScope.launch(Dispatchers.Main) {
                         hideCheckingShowButton()
                     }
-                }
-                else if(alcoholCheckSuccess == null){
+                } else if (alcoholCheckSuccess == null) {
                     Utilities.messagePlayer?.playAlcoholCheckLaterMsg()
                     lifecycleScope.launch(Dispatchers.Main) {
                         hideCheckingShowButton()
@@ -231,7 +253,7 @@ class MainActivity : AppCompatActivity() {
             }
 
         } else {
-            lifecycleScope.launch (Dispatchers.Main) {
+            lifecycleScope.launch(Dispatchers.Main) {
                 hideCheckingShowButton()
             }
             Utilities.messagePlayer?.playReadCardFailMsg()

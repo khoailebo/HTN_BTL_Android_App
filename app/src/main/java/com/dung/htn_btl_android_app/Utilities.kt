@@ -5,6 +5,7 @@ class Utilities {
         var communicator: Communicator? = null
         var messagePlayer: MessagePlayer? = null
         var driver: Driver? = null
+        var mqttConnector: MQTTConnector? = null
     }
 
 }

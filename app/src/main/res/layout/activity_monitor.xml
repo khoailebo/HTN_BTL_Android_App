@@ -16,8 +16,13 @@
         android:background="@android:color/transparent"
         android:id="@+id/overlayView"/>
     <Button
+        android:layout_marginBottom="20dp"
+        android:paddingVertical="5dp"
         android:layout_width="wrap_content"
+        android:textSize="20sp"
         android:layout_gravity="center|bottom"
+        android:id="@+id/stop_engine"
+        android:backgroundTint="@android:color/holo_red_light"
         android:layout_height="wrap_content"
         android:text="Stop Engine"/>
 </FrameLayout>
