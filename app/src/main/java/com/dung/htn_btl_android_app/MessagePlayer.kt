@@ -60,8 +60,9 @@ class MessagePlayer(val context: Context) {
         delay(1200)
     }
 
-    fun playTingSE(){
+    suspend fun playTingSE(){
         playSound("ting_se")
+        delay(500)
     }
 
     suspend fun playFaceAuthenMsg(){

@@ -63,6 +63,7 @@ class MonitorActivity : AppCompatActivity() {
     }
 
     private var playingMsg = false
+    private var playingAlert = false
     fun startCamera() {
         val cameraProviderFuture = ProcessCameraProvider.getInstance(this@MonitorActivity)
         cameraProviderFuture.addListener({
@@ -98,8 +99,12 @@ class MonitorActivity : AppCompatActivity() {
                                             playingMsg = false
                                         }
                                     }
-                                    lifecycleScope.launch {
-                                        Utilities.messagePlayer?.playTingSE()
+                                    if (!playingAlert) {
+                                        playingAlert = true
+                                        lifecycleScope.launch {
+                                            Utilities.messagePlayer?.playTingSE()
+                                            playingAlert = false
+                                        }
                                     }
                                 }
                                 Log.d(
