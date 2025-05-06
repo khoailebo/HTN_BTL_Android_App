@@ -6,6 +6,8 @@ class Utilities {
         var messagePlayer: MessagePlayer? = null
         var driver: Driver? = null
         var mqttConnector: MQTTConnector? = null
+        var imageEmbedded: FloatArray? = null
+        var vehicle: Vehicle? = null
     }
 
 }

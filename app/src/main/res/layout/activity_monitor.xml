@@ -15,6 +15,10 @@
         android:layout_height="match_parent"
         android:background="@android:color/transparent"
         android:id="@+id/overlayView"/>
+    <com.dung.htn_btl_android_app.WarningView
+        android:id="@+id/warning"
+        android:layout_width="match_parent"
+        android:layout_height="match_parent"/>
     <Button
         android:layout_marginBottom="20dp"
         android:paddingVertical="5dp"

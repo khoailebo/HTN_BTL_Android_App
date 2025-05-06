@@ -61,6 +61,7 @@ dependencies {
     implementation(libs.tensorflow.lite.gpu)
     implementation(libs.tensorflow.lite.support)
     implementation (libs.kotlinx.coroutines.play.services)
+    implementation(libs.gson)
     testImplementation(libs.junit)
     androidTestImplementation(libs.androidx.junit)
     androidTestImplementation(libs.androidx.espresso.core)

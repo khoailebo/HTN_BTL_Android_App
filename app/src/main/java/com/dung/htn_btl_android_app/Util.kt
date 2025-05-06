@@ -59,6 +59,19 @@ object BitmapUtils {
         // Create a copy of the face rect that we'll adjust
         val adjustedRect = Rect(face)
 
+        if(adjustedRect.right > bitmap.width){
+            adjustedRect.right = bitmap.width
+        }
+        if(adjustedRect.top < 0){
+            adjustedRect.top = 0
+        }
+        if(adjustedRect.left < 0){
+            adjustedRect.left = 0
+        }
+        if(adjustedRect.bottom > bitmap.height){
+            adjustedRect.bottom = bitmap.height
+        }
+
         // Adjust coordinates
 
         return Bitmap.createBitmap(
@@ -66,7 +79,7 @@ object BitmapUtils {
             adjustedRect.left,
             adjustedRect.top,
             adjustedRect.width(),
-            adjustedRect.height()
+            adjustedRect.height(),
         )
     }
 }

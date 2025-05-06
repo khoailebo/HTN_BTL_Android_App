@@ -3,6 +3,8 @@ package com.dung.htn_btl_android_app
 import android.app.Activity
 import android.app.ActivityManager
 import android.content.Intent
+import android.graphics.Bitmap
+import android.graphics.BitmapFactory
 import android.os.Bundle
 import android.os.Handler
 import android.os.Looper
@@ -23,7 +25,9 @@ import androidx.camera.view.PreviewView
 import androidx.core.content.ContextCompat
 import androidx.core.view.ViewCompat
 import androidx.core.view.WindowInsetsCompat
+import androidx.lifecycle.ViewModelProvider
 import androidx.lifecycle.lifecycleScope
+import com.bumptech.glide.Glide
 import com.dung.htn_btl_android_app.BitmapUtils.cropFace
 import com.google.mlkit.vision.common.InputImage
 import com.google.mlkit.vision.face.Face
@@ -46,6 +50,7 @@ class FaceDetectorActivity : AppCompatActivity() {
     private var storedEmbedding: FloatArray? = null
     private lateinit var cameraExecutor: ExecutorService
     private lateinit var imageView: ImageView
+    private lateinit var viewModel: FaceDetectorViewModel
 
     companion object {
         const val SIMILARITY = "similarity"
@@ -54,9 +59,45 @@ class FaceDetectorActivity : AppCompatActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         setContentView(R.layout.activity_face_detector)
+        viewModel = ViewModelProvider(this).get(FaceDetectorViewModel::class.java)
+        faceComparator = FaceComparator(this)
         setUpCompoent()
         setUpFaceDetector()
         setUpCamera()
+        downLoadDriveImage()
+    }
+
+    fun downLoadDriveImage() {
+        lifecycleScope.launch(Dispatchers.IO) {
+            val bitmap =
+                Glide.with(this@FaceDetectorActivity)
+                    .asBitmap()
+                    .load(
+//                        "https://skmefiekzbtoqmbtpdic.supabase.co/storage/v1/object/public/image/uploads/image_1745687878149.jpg"
+                        Utilities.driver?.imageUrl
+                    )
+                    .submit()
+                    .get()
+            val inputImage = InputImage.fromBitmap(bitmap, 0)
+            faceDetector.process(inputImage)
+                .addOnSuccessListener { faces ->
+                    if (faces.isNotEmpty()) {
+                        val maxFace =
+                            faces?.maxByOrNull { it.boundingBox.width() * it.boundingBox.height() }
+                        maxFace?.let {
+                            Utilities.driver?.image = Bitmap.createBitmap(
+                                bitmap,
+                                it.boundingBox.left,
+                                it.boundingBox.top,
+                                it.boundingBox.width(),
+                                it.boundingBox.height()
+                            )
+                            Utilities.imageEmbedded =
+                                faceComparator.getFaceEmbedding(Utilities.driver?.image!!)
+                        }
+                    }
+                }
+        }
     }
 
     fun setUpCamera() {
@@ -65,7 +106,7 @@ class FaceDetectorActivity : AppCompatActivity() {
 
     fun setUpFaceDetector() {
         val options = FaceDetectorOptions.Builder()
-            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_ACCURATE)  // Set to accurate mode
+            .setPerformanceMode(FaceDetectorOptions.PERFORMANCE_MODE_FAST)  // Set to accurate mode
             .setLandmarkMode(FaceDetectorOptions.LANDMARK_MODE_ALL)  // Optional: Detect all landmarks (eyes, nose, etc.)
             .setContourMode(FaceDetectorOptions.CONTOUR_MODE_ALL)
             .setMinFaceSize(0.1f)  // Optional: You can adjust the minimum face size for detection
@@ -103,10 +144,8 @@ class FaceDetectorActivity : AppCompatActivity() {
                 .build()
             imageAnalysis.setAnalyzer(ContextCompat.getMainExecutor(this@FaceDetectorActivity)) { imageProxy ->
                 try {
-                    if (comparing) {
+                    if (true) {
                         processImageForFaceDetection(imageProxy)
-                    } else {
-                        handleComparisonFinished(imageProxy)
                     }
                 } catch (e: Exception) {
                     Log.e("FaceDetection", "Error in analyzer", e)
@@ -124,6 +163,8 @@ class FaceDetectorActivity : AppCompatActivity() {
                 Log.e("CameraX", "Use case binding failed", exc)
             }
         }, ContextCompat.getMainExecutor(this@FaceDetectorActivity))
+        viewModel.startTime = System.currentTimeMillis()
+        viewModel.startUndefineTime = System.currentTimeMillis()
     }
 
     private fun processImageForFaceDetection(imageProxy: ImageProxy) {
@@ -138,6 +179,7 @@ class FaceDetectorActivity : AppCompatActivity() {
         faceDetector.process(inputImage)
             .addOnSuccessListener { faces ->
                 if (faces.isNotEmpty()) {
+                    viewModel.startUndefineTime = System.currentTimeMillis()
                     overlayView.setFaces(
                         faces,
                         bitmap.width,
@@ -146,31 +188,55 @@ class FaceDetectorActivity : AppCompatActivity() {
                         true
                     )
 
-                    if (!checking) {
-                        checking = true
-                        Handler(Looper.getMainLooper()).postDelayed({
-                            comparing = false
-                        }, 5000)
+                    val maxFace =
+                        faces.maxByOrNull { it.boundingBox.width() * it.boundingBox.height() }
+                    maxFace?.let {
+                        val faceBitmap = imageProxy.cropFace(it.boundingBox,bitmap)
+                        if (System.currentTimeMillis() - viewModel.startTime <= 10000) {
+                            lifecycleScope.launch(Dispatchers.IO) {
+                                val similarity = compareFace(faceBitmap)
+                                if (similarity > 0.7) {
+                                    viewModel.authenticate = true
+                                    handleComparisonFinished()
+                                }
+                                Log.d("FaceDetectorActivity", similarity.toString())
+                            }
+                        } else {
+                            handleComparisonFinished()
+                        }
                     }
                 } else {
                     overlayView.setFaces(listOf<Face>(), 0, 0, 0)
+                    if (System.currentTimeMillis() - viewModel.startUndefineTime > 5000) {
+                        handleComparisonFinished()
+                    }
+
                 }
                 imageProxy.close()
             }
             .addOnFailureListener {
+                if (System.currentTimeMillis() - viewModel.startUndefineTime > 5000) {
+                    handleComparisonFinished()
+                }
                 imageProxy.close()
             }
     }
 
+    private fun compareFace(faceBitmap: Bitmap): Float {
+        Utilities.imageEmbedded?.let {
+            viewModel.faceCameraEmbedded = faceComparator.getFaceEmbedding(faceBitmap)
+            return faceComparator.calculateSimilarity(it, viewModel.faceCameraEmbedded!!)
+        }
+        return 0f
+    }
 
-    private fun handleComparisonFinished(imageProxy: ImageProxy) {
+
+    private fun handleComparisonFinished() {
         if (finished) {
-            imageProxy.close()
             return
         }
 
         finished = true
-        safeCloseImageProxy(imageProxy)
 
         lifecycleScope.launch {
             withContext(Dispatchers.Main) {
@@ -178,7 +244,7 @@ class FaceDetectorActivity : AppCompatActivity() {
 
                     cameraProvider.unbindAll()
                     val resultIntent = Intent().apply {
-                        putExtra(SIMILARITY,true)
+                        putExtra(SIMILARITY, viewModel.authenticate)
                     }
                     setResult(Activity.RESULT_OK, resultIntent)
 
@@ -197,14 +263,16 @@ class FaceDetectorActivity : AppCompatActivity() {
 
     private fun safeCloseImageProxy(imageProxy: ImageProxy) {
         try {
-                imageProxy.close()
+            imageProxy.close()
         } catch (e: Exception) {
             Log.e("Camera", "Error closing image proxy", e)
         }
     }
+
     override fun onDestroy() {
         super.onDestroy()
         cameraExecutor.shutdown()
+        faceDetector.close()
     }
 }
 

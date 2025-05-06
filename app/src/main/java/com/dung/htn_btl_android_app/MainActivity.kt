@@ -20,6 +20,8 @@ import androidx.appcompat.app.AppCompatActivity
 import androidx.core.app.ActivityCompat
 import androidx.core.content.ContextCompat
 import androidx.lifecycle.lifecycleScope
+import com.google.gson.Gson
+import com.google.gson.JsonParser
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.delay
@@ -100,8 +102,8 @@ class MainActivity : AppCompatActivity() {
         }
 
         registerReceiver(receiver, IntentFilter(BluetoothDevice.ACTION_FOUND))
-        lifecycleScope.launch (Dispatchers.IO) {
-            Utilities.mqttConnector = MQTTConnector()
+        lifecycleScope.launch(Dispatchers.IO) {
+            Utilities.mqttConnector = MQTTConnector.getInstance()
         }
         lifecycleScope.launch(Dispatchers.Default) {
             // Enable Bluetooth if not already
@@ -165,8 +167,17 @@ class MainActivity : AppCompatActivity() {
             Utilities.communicator?.sendEvent("GetDriverId") { data ->
                 data?.let {
                     Utilities.driver = Driver(it)
+                    Utilities.mqttConnector?.sendDriveID { responseData ->
+                        responseData?.let {
+                            val responseJson = JsonParser.parseString(it).asJsonObject
+                            Utilities.driver?.imageUrl = responseJson["imageUrl"].asString
+                        }
+                        cont.resume(responseData != null, null)
+                    }
                 }
-                cont.resume(data != null, null)
+                if (data == null) {
+                    cont.resume(false)
+                }
             }
         }
         if (readCardSuccessful) {
@@ -202,14 +213,15 @@ class MainActivity : AppCompatActivity() {
                 }
                 Log.d("InitialAlcohol", minAlcoholValue.toString())
 
+                var alcoholLevel = 0f
                 do {
                     alcoholCheckSuccess = suspendCancellableCoroutine<Boolean?> { cont ->
                         Utilities.communicator?.sendEvent("GetAlcoholLevel") { data ->
                             Log.d("ALCOHOL CHECK", data ?: "NULL")
-                            val alcoholLevel = if (data != null) data.toFloat() else 0f;
+                            alcoholLevel = if (data != null) data.toFloat() else 0f;
                             if (
 //                                !(alcoholLevel > minAlcoholValue)
-                                ((alcoholLevel * 10000).toInt() - (minAlcoholValue * 10000).toInt()) < 2
+                                ((alcoholLevel * 10000).toInt() - (minAlcoholValue * 10000).toInt()) <= 2
                             ) {
                                 Log.d(
                                     "Alcohol",
@@ -230,10 +242,23 @@ class MainActivity : AppCompatActivity() {
                     Utilities.messagePlayer?.playTingSE()
                     Utilities.messagePlayer?.playAlcoholInLimit()
                     Utilities.messagePlayer?.playFinishAuthenMsg()
+                    Utilities.communicator?.sendEvent("StartEngine")
+
+                    Utilities.mqttConnector?.sendStartDriving(
+                        Gson().toJson(
+                            Request(
+                                driverId = Utilities.driver?.id!!,
+                                data = Utilities.vehicle?.apply { running = true }
+                                    .toString()))
+                    )
+                    Utilities.mqttConnector?.overlimitAlcohol(
+                        Gson().toJson(
+                            Request(
+                                driverId = Utilities.driver?.id!!,
+                                data = AlcoholRequest(alcoholLevel).toString()))
+                    )
                     lifecycleScope.launch(Dispatchers.Main) {
                         startActivity(Intent(this@MainActivity, MonitorActivity::class.java))
-                    }
-                    lifecycleScope.launch(Dispatchers.Main) {
                         hideCheckingShowButton()
                     }
                 } else if (alcoholCheckSuccess == false) {
@@ -250,6 +275,9 @@ class MainActivity : AppCompatActivity() {
                 }
             } else {
                 Utilities.messagePlayer?.playFaceAuthenFailMsg()
+                lifecycleScope.launch(Dispatchers.Main) {
+                    hideCheckingShowButton()
+                }
             }
 
         } else {
@@ -297,11 +325,17 @@ class MainActivity : AppCompatActivity() {
         }
         val uuid = device.uuids?.firstOrNull()?.uuid
             ?: UUID.fromString("00001101-0000-1000-8000-00805F9B34FB")
+//        Utilities.vehicle = Vehicle(uuid.toString())
         val socket = device.createRfcommSocketToServiceRecord(uuid)
         socket.connect()
 
         Utilities.communicator = Communicator(socket, lifecycleScope) {
             startBluetooth()
+        }
+        Utilities.communicator?.sendEvent("GetVehicleId") {
+            it?.let {
+                Utilities.vehicle = Vehicle(it.toLong())
+            }
         }
     }
 

@@ -36,7 +36,7 @@ class Communicator(
         val msg = eventName.plus("|").plus(eventData)
         responseCallback?.let {
             if (callbackMap.containsKey(eventName)) {
-                callbackMap[eventData]?.let {
+                callbackMap[eventName]?.let {
                     it.add(responseCallback)
                 }
             } else {

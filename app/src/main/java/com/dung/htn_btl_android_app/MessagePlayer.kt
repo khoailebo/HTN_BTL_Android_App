@@ -12,7 +12,7 @@ class MessagePlayer(val context: Context) {
         .build()
 
     private val soundPool = SoundPool.Builder()
-        .setMaxStreams(10)
+        .setMaxStreams(20)
         .setAudioAttributes(audioAttributes)
         .build()
 
@@ -36,6 +36,7 @@ class MessagePlayer(val context: Context) {
         soundMap["focus_warning"] = soundPool.load(context,R.raw.focuswarning,5)
         soundMap["health_problem"] = soundPool.load(context,R.raw.healthproblem,1)
         soundMap["alcohol_try_again"] = soundPool.load(context,R.raw.alcoholtryagain,1)
+        soundMap["driver_undefine"] = soundPool.load(context,R.raw.driverundefine,1)
 
     }
 
@@ -122,6 +123,10 @@ class MessagePlayer(val context: Context) {
     suspend fun playAlcoholTryAgainMsg(){
         playSound("alcohol_try_again")
         delay(3000)
+    }
+    suspend fun playDriverUndefineMsg(){
+        playSound("driver_undefine")
+        delay(2000)
     }
     fun release(){
         soundPool.release()

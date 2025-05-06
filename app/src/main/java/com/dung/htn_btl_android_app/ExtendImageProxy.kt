@@ -40,7 +40,7 @@ fun ImageProxy.toProperlyRotatedBitmap(): Bitmap {
                     postScale(-1f, 1f) // Mirror for front camera
                 }
             }.let { matrix ->
-                Bitmap.createBitmap(this, 0, 0, width, height, matrix, true).also {
+                Bitmap.createBitmap(this, 0, 0, width, height, matrix, false).also {
                     recycle()
                 }
             }
