@@ -251,12 +251,7 @@ class MainActivity : AppCompatActivity() {
                                 data = Utilities.vehicle?.apply { running = true }
                                     .toString()))
                     )
-                    Utilities.mqttConnector?.overlimitAlcohol(
-                        Gson().toJson(
-                            Request(
-                                driverId = Utilities.driver?.id!!,
-                                data = AlcoholRequest(alcoholLevel).toString()))
-                    )
+
                     lifecycleScope.launch(Dispatchers.Main) {
                         startActivity(Intent(this@MainActivity, MonitorActivity::class.java))
                         hideCheckingShowButton()
@@ -264,6 +259,12 @@ class MainActivity : AppCompatActivity() {
                 } else if (alcoholCheckSuccess == false) {
                     Utilities.messagePlayer?.playAlcoholOverLimit()
                     Utilities.messagePlayer?.playAlcoholCheckLaterMsg()
+                    Utilities.mqttConnector?.overlimitAlcohol(
+                        Gson().toJson(
+                            Request(
+                                driverId = Utilities.driver?.id!!,
+                                data = AlcoholRequest(alcoholLevel).toString()))
+                    )
                     lifecycleScope.launch(Dispatchers.Main) {
                         hideCheckingShowButton()
                     }
